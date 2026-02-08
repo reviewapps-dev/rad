@@ -181,16 +181,16 @@ fi
 chown caddy:caddy "$INSTALL_DIR/log"
 chmod 775 "$INSTALL_DIR/log"
 
-# 7. Caddy config
+# 7. Caddy config — replace the default Caddyfile
 info "Configuring Caddy..."
-cat > "$INSTALL_DIR/etc/caddy/Caddyfile" <<'CADDYFILE'
+cat > /etc/caddy/Caddyfile <<'CADDYFILE'
 {
   admin localhost:2019
 }
 
 import /opt/reviewapps/etc/caddy/sites/*.caddy
 CADDYFILE
-ok "Caddyfile written"
+ok "Caddyfile written to /etc/caddy/Caddyfile"
 
 # 8. rad config
 info "Writing rad config..."
