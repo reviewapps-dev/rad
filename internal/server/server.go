@@ -10,6 +10,7 @@ import (
 	"github.com/reviewapps-dev/rad/internal/buildqueue"
 	"github.com/reviewapps-dev/rad/internal/caddy"
 	"github.com/reviewapps-dev/rad/internal/config"
+	"github.com/reviewapps-dev/rad/internal/logstream"
 	"github.com/reviewapps-dev/rad/internal/port"
 )
 
@@ -21,18 +22,20 @@ type Server struct {
 	ports     *port.Allocator
 	queue     *buildqueue.Queue
 	caddy     *caddy.Manager
+	hub       *logstream.Hub
 	httpSrv   *http.Server
 	startTime time.Time
 	deployFn  DeployFunc
 }
 
-func New(cfg *config.Config, store *app.Store, ports *port.Allocator, queue *buildqueue.Queue, cm *caddy.Manager) *Server {
+func New(cfg *config.Config, store *app.Store, ports *port.Allocator, queue *buildqueue.Queue, cm *caddy.Manager, hub *logstream.Hub) *Server {
 	return &Server{
 		cfg:       cfg,
 		store:     store,
 		ports:     ports,
 		queue:     queue,
 		caddy:     cm,
+		hub:       hub,
 		startTime: time.Now(),
 	}
 }
@@ -58,6 +61,10 @@ func (s *Server) routes() http.Handler {
 	authed.HandleFunc("GET /apps/{app_id}/logs", s.handleLogs)
 	authed.HandleFunc("POST /update", s.handleUpdate)
 
+	// WebSocket log streaming — uses streamAuthMiddleware (accepts stream token via query param).
+	// Registered with method+path which is more specific than the "/apps/" subtree pattern below.
+	mux.Handle("GET /apps/{app_id}/logs/stream", s.streamAuthMiddleware(http.HandlerFunc(s.handleLogStream)))
+
 	mux.Handle("/apps/", s.authMiddleware(authed))
 	mux.Handle("/apps", s.authMiddleware(authed))
 	mux.Handle("/update", s.authMiddleware(authed))
@@ -74,7 +81,7 @@ func (s *Server) Start() error {
 		Addr:         s.cfg.Server.Listen,
 		Handler:      s.routes(),
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		WriteTimeout: 0, // WebSocket connections are long-lived; all HTTP endpoints complete fast
 		IdleTimeout:  120 * time.Second,
 	}
 

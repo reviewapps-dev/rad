@@ -12,6 +12,7 @@ import (
 	"github.com/reviewapps-dev/rad/internal/callback"
 	"github.com/reviewapps-dev/rad/internal/config"
 	"github.com/reviewapps-dev/rad/internal/logging"
+	"github.com/reviewapps-dev/rad/internal/logstream"
 	"github.com/reviewapps-dev/rad/internal/port"
 )
 
@@ -21,14 +22,16 @@ type Pipeline struct {
 	store  *app.Store
 	ports  *port.Allocator
 	caddy  *caddy.Manager
+	hub    *logstream.Hub
 }
 
-func NewPipeline(cfg *config.Config, store *app.Store, ports *port.Allocator, cm *caddy.Manager) *Pipeline {
+func NewPipeline(cfg *config.Config, store *app.Store, ports *port.Allocator, cm *caddy.Manager, hub *logstream.Hub) *Pipeline {
 	return &Pipeline{
 		cfg:   cfg,
 		store: store,
 		ports: ports,
 		caddy: cm,
+		hub:   hub,
 	}
 }
 
@@ -47,6 +50,7 @@ func (p *Pipeline) Run(ctx context.Context, state *app.AppState, redeploy ...boo
 
 	logger := logging.NewDeployLogger(state.AppID, func(appID, line string) {
 		p.store.AppendLog(appID, line)
+		p.hub.Publish(appID, line)
 		if logStreamer != nil {
 			logStreamer.add(line)
 		}
@@ -106,6 +110,7 @@ func (p *Pipeline) Run(ctx context.Context, state *app.AppState, redeploy ...boo
 			if logStreamer != nil {
 				logStreamer.stop()
 			}
+			p.hub.Close(state.AppID)
 			return fmt.Errorf("step %s: %w", step.Name(), err)
 		}
 	}
@@ -117,6 +122,7 @@ func (p *Pipeline) Run(ctx context.Context, state *app.AppState, redeploy ...boo
 		logStreamer.stop()
 	}
 
+	p.hub.Close(state.AppID)
 	return nil
 }
 

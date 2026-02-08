@@ -21,8 +21,11 @@ Requires Go 1.22+ and `CGO_ENABLED=0` (set automatically in the Makefile).
 Run rad locally on macOS/Linux for development and testing:
 
 ```bash
-# Start rad in dev mode
+# Start rad in dev mode (auto-generates stream token as "stream-secret")
 ./bin/rad --dev --token secret
+
+# Or specify a custom stream token
+./bin/rad --dev --token secret --stream-token my-stream-token
 
 # In another terminal, deploy a test app
 curl -X POST http://localhost:7890/apps/deploy \
@@ -50,10 +53,36 @@ All endpoints except `/health` require `Authorization: Bearer <token>`.
 | `GET` | `/apps` | List all apps |
 | `GET` | `/apps/{id}/status` | App status, URL, memory, uptime |
 | `GET` | `/apps/{id}/logs` | Build or runtime logs |
+| `GET` | `/apps/{id}/logs/stream` | WebSocket log streaming (real-time) |
 | `POST` | `/apps/{id}/restart` | Restart all processes |
 | `POST` | `/apps/{id}/exec` | Run a command in app context |
 | `DELETE` | `/apps/{id}` | Teardown and remove |
 | `POST` | `/update` | Trigger self-update |
+
+### WebSocket Log Streaming
+
+The `/apps/{id}/logs/stream` endpoint provides real-time log streaming over WebSocket.
+
+**Auth**: Uses a separate read-only `--stream-token` that's safe to embed in browser JavaScript (can only read log streams, not deploy/teardown/exec). The main `--token` also works. Pass the token via `?token=` query param since browser WebSocket APIs can't set custom headers.
+
+**Query params**:
+- `type=build` (default) — stream build logs during a deploy
+- `type=runtime` — tail runtime logs (`tail -f` style)
+- `process=web` (default) — which process to tail (runtime only)
+- `token=<token>` — stream token or main token
+
+```bash
+# Stream build logs during deploy
+websocat 'ws://localhost:7890/apps/my-app/logs/stream?type=build&token=secret'
+
+# Tail runtime logs
+websocat 'ws://localhost:7890/apps/my-app/logs/stream?type=runtime&token=stream-secret'
+
+# Tail worker process logs
+websocat 'ws://localhost:7890/apps/my-app/logs/stream?type=runtime&process=worker&token=stream-secret'
+```
+
+Build log streams send existing log lines as backlog, then stream new lines as they arrive. The connection closes automatically when the deploy finishes. Runtime log streams send the last 100 lines as backlog, then poll for new content.
 
 ## Deploy Pipeline
 
@@ -180,7 +209,7 @@ make release VERSION=0.2.0
 
 ## Architecture
 
-- 23 internal packages, 54 Go files
+- 23 internal packages, 57 Go files
 - Single static binary, no runtime dependencies
 - Serial build queue (one deploy at a time)
 - Persistent state via `state.json`

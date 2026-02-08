@@ -28,8 +28,10 @@ import (
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	rvVersion := "unknown"
-	if out, err := exec.Command("/opt/homebrew/bin/rv", "--version").Output(); err == nil {
-		rvVersion = strings.TrimSpace(string(out))
+	if rvBin, err := exec.LookPath("rv"); err == nil {
+		if out, err := exec.Command(rvBin, "--version").Output(); err == nil {
+			rvVersion = strings.TrimSpace(string(out))
+		}
 	}
 
 	fnmVersion := "unknown"

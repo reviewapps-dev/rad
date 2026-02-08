@@ -18,6 +18,7 @@ import (
 	"github.com/reviewapps-dev/rad/internal/config"
 	"github.com/reviewapps-dev/rad/internal/deploy"
 	"github.com/reviewapps-dev/rad/internal/heartbeat"
+	"github.com/reviewapps-dev/rad/internal/logstream"
 	"github.com/reviewapps-dev/rad/internal/monitor"
 	"github.com/reviewapps-dev/rad/internal/port"
 	"github.com/reviewapps-dev/rad/internal/server"
@@ -39,11 +40,12 @@ func main() {
 	}
 
 	var (
-		dev        = flag.Bool("dev", false, "run in dev mode")
-		token      = flag.String("token", "", "auth token (dev mode)")
-		listen     = flag.String("listen", "", "override listen address")
-		configPath = flag.String("config", "", "path to config.toml")
-		showVer    = flag.Bool("version", false, "print version and exit")
+		dev         = flag.Bool("dev", false, "run in dev mode")
+		token       = flag.String("token", "", "auth token (dev mode)")
+		streamToken = flag.String("stream-token", "", "read-only token for WebSocket log streaming")
+		listen      = flag.String("listen", "", "override listen address")
+		configPath  = flag.String("config", "", "path to config.toml")
+		showVer     = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
 
@@ -60,8 +62,17 @@ func main() {
 	if *token != "" {
 		cfg.Auth.Token = *token
 	}
+	if *streamToken != "" {
+		cfg.Auth.StreamToken = *streamToken
+	}
 	if *listen != "" {
 		cfg.Server.Listen = *listen
+	}
+
+	// In dev mode, auto-generate a stream token if not provided
+	if cfg.Dev && cfg.Auth.StreamToken == "" {
+		cfg.Auth.StreamToken = "stream-" + cfg.Auth.Token
+		log.Printf("dev: auto-generated stream token: %s", cfg.Auth.StreamToken)
 	}
 
 	if err := cfg.EnsureDirs(); err != nil {
@@ -93,8 +104,11 @@ func main() {
 		log.Printf("caddy: disabled (dev mode — apps accessible via localhost:{port})")
 	}
 
+	// Create the log streaming hub
+	hub := logstream.NewHub()
+
 	// Build the deploy pipeline
-	pipeline := deploy.NewPipeline(cfg, store, ports, cm)
+	pipeline := deploy.NewPipeline(cfg, store, ports, cm, hub)
 	pipeline.AddStep(&deploy.CreateDirStep{})
 	pipeline.AddStep(&deploy.GitCloneStep{})
 	pipeline.AddStep(&deploy.DetectConfigStep{})
@@ -123,7 +137,7 @@ func main() {
 	pipeline.AddStep(&deploy.RunHooksStep{Phase: deploy.HookAfterDeploy})
 	pipeline.AddStep(&deploy.CallbackStep{})
 
-	srv := server.New(cfg, store, ports, queue, cm)
+	srv := server.New(cfg, store, ports, queue, cm, hub)
 	srv.SetDeployFunc(func(ctx context.Context, state *app.AppState, redeploy bool) error {
 		return pipeline.Run(ctx, state, redeploy)
 	})
