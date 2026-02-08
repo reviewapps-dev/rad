@@ -114,6 +114,13 @@ fi
 TMP_DIR="$(mktemp -d)"
 curl -sSL "$DOWNLOAD_URL" -o "$TMP_DIR/rad.tar.gz" || fail "Failed to download rad from $DOWNLOAD_URL"
 tar -xzf "$TMP_DIR/rad.tar.gz" -C "$TMP_DIR"
+
+# Stop rad if running (binary can't be overwritten while in use)
+if systemctl is-active --quiet rad 2>/dev/null; then
+  systemctl stop rad
+  ok "stopped running rad"
+fi
+
 cp "$TMP_DIR"/rad_*/rad "$INSTALL_DIR/bin/rad"
 chmod +x "$INSTALL_DIR/bin/rad"
 rm -rf "$TMP_DIR"
