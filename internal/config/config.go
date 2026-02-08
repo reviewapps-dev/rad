@@ -31,8 +31,7 @@ type ServerConfig struct {
 }
 
 type AuthConfig struct {
-	TokenHash   string `toml:"token_hash"`
-	Token       string `toml:"-"` // plain token for dev mode, set via flag
+	Token       string `toml:"-"` // auth token, set via --token flag
 	StreamToken string `toml:"-"` // read-only token for WebSocket log streaming
 }
 

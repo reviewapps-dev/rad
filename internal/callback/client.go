@@ -38,17 +38,7 @@ func (c *Client) SendStatus(callbackURL string, payload StatusPayload) error {
 		return fmt.Errorf("callback marshal: %w", err)
 	}
 
-	resp, err := c.httpClient.Post(callbackURL, "application/json", bytes.NewReader(body))
-	if err != nil {
-		log.Printf("callback: POST %s failed: %v", callbackURL, err)
-		return nil // Don't fail deploy on callback failure
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		log.Printf("callback: POST %s returned %d", callbackURL, resp.StatusCode)
-	}
-
+	c.postWithRetry(callbackURL, body)
 	return nil
 }
 
@@ -67,6 +57,7 @@ func (c *Client) SendLogs(logsURL string, payload LogPayload) error {
 		return nil
 	}
 
+	// Logs are best-effort, single attempt (they batch every 5s so missing one is fine)
 	resp, err := c.httpClient.Post(logsURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil
@@ -74,4 +65,34 @@ func (c *Client) SendLogs(logsURL string, payload LogPayload) error {
 	defer resp.Body.Close()
 
 	return nil
+}
+
+// postWithRetry attempts a POST up to 3 times with exponential backoff.
+// Never returns an error — callbacks are best-effort and must not fail deploys.
+func (c *Client) postWithRetry(url string, body []byte) {
+	delays := []time.Duration{0, 2 * time.Second, 5 * time.Second}
+
+	for attempt, delay := range delays {
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+
+		resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(body))
+		if err != nil {
+			log.Printf("callback: POST %s attempt %d failed: %v", url, attempt+1, err)
+			continue
+		}
+		resp.Body.Close()
+
+		if resp.StatusCode < 500 {
+			if resp.StatusCode >= 400 {
+				log.Printf("callback: POST %s returned %d", url, resp.StatusCode)
+			}
+			return
+		}
+
+		log.Printf("callback: POST %s attempt %d returned %d", url, attempt+1, resp.StatusCode)
+	}
+
+	log.Printf("callback: POST %s failed after 3 attempts, giving up", url)
 }

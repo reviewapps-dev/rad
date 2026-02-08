@@ -24,17 +24,9 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if s.cfg.Dev {
-			if token != s.cfg.Auth.Token {
-				writeError(w, http.StatusUnauthorized, "invalid token")
-				return
-			}
-		} else {
-			// TODO: bcrypt comparison for production
-			if token != s.cfg.Auth.Token {
-				writeError(w, http.StatusUnauthorized, "invalid token")
-				return
-			}
+		if token != s.cfg.Auth.Token {
+			writeError(w, http.StatusUnauthorized, "invalid token")
+			return
 		}
 
 		next.ServeHTTP(w, r)
