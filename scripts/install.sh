@@ -131,11 +131,19 @@ ok "rad $RAD_INSTALLED_VERSION"
 
 # 4. Install rv (Ruby version manager)
 info "Installing rv..."
-if [ ! -f "$INSTALL_DIR/bin/rv" ]; then
+if [ ! -f "$INSTALL_DIR/bin/rv" ] || ! "$INSTALL_DIR/bin/rv" --version > /dev/null 2>&1; then
   RV_VERSION="0.4.3"
-  RV_URL="https://github.com/nicholasgasior/rv/releases/download/v${RV_VERSION}/rv-${RV_VERSION}-linux-${ARCH}"
-  curl -sSL "$RV_URL" -o "$INSTALL_DIR/bin/rv" || fail "Failed to download rv"
+  case "$ARCH" in
+    amd64) RV_TRIPLE="x86_64-unknown-linux-gnu" ;;
+    arm64) RV_TRIPLE="aarch64-unknown-linux-gnu" ;;
+  esac
+  RV_URL="https://github.com/spinel-coop/rv/releases/download/v${RV_VERSION}/rv-${RV_TRIPLE}.tar.xz"
+  RV_TMP="$(mktemp -d)"
+  curl -sSL "$RV_URL" -o "$RV_TMP/rv.tar.xz" || fail "Failed to download rv"
+  tar -xJf "$RV_TMP/rv.tar.xz" -C "$RV_TMP"
+  cp "$RV_TMP"/rv-*/rv "$INSTALL_DIR/bin/rv"
   chmod +x "$INSTALL_DIR/bin/rv"
+  rm -rf "$RV_TMP"
   ok "rv $RV_VERSION"
 else
   ok "rv already installed"
