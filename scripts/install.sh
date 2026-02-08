@@ -255,9 +255,13 @@ PROFILE
 else
   ok "Already in PATH"
 fi
-# Symlink rad into /usr/local/bin so it works immediately
-ln -sf "$INSTALL_DIR/bin/rad" /usr/local/bin/rad
-ok "rad available at /usr/local/bin/rad"
+# Symlink binaries into /usr/local/bin so they work immediately
+for bin in rad rv fnm; do
+  if [ -f "$INSTALL_DIR/bin/$bin" ]; then
+    ln -sf "$INSTALL_DIR/bin/$bin" "/usr/local/bin/$bin"
+  fi
+done
+ok "rad, rv, fnm available in PATH"
 
 # 11. Start
 info "Starting services..."
