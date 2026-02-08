@@ -159,7 +159,7 @@ fi
 info "Configuring Caddy..."
 cat > "$INSTALL_DIR/etc/caddy/Caddyfile" <<'CADDYFILE'
 {
-  admin off
+  admin localhost:2019
 }
 
 import /opt/reviewapps/etc/caddy/sites/*.caddy
@@ -223,7 +223,20 @@ systemctl daemon-reload
 systemctl enable rad > /dev/null 2>&1
 ok "systemd service created"
 
-# 10. Start
+# 10. Add to PATH for all users
+info "Adding rad to PATH..."
+if [ ! -f /etc/profile.d/reviewapps.sh ]; then
+  cat > /etc/profile.d/reviewapps.sh <<'PROFILE'
+export PATH="/opt/reviewapps/bin:$PATH"
+PROFILE
+  ok "/etc/profile.d/reviewapps.sh created (takes effect on next login)"
+else
+  ok "Already in PATH"
+fi
+# Also add to current session
+export PATH="$INSTALL_DIR/bin:$PATH"
+
+# 11. Start
 info "Starting services..."
 systemctl stop caddy 2>/dev/null || true
 # Point Caddy at our Caddyfile instead of the default
