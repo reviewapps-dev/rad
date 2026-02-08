@@ -76,20 +76,26 @@ echo ""
 # 1. System dependencies
 info "Installing system dependencies..."
 export DEBIAN_FRONTEND=noninteractive
+
+PACKAGES=(
+  build-essential
+  libpq-dev
+  libsqlite3-dev
+  libvips-dev
+  libffi-dev
+  libssl-dev
+  libyaml-dev
+  git
+  curl
+  unzip
+  postgresql-client
+)
+
 apt-get update -qq
-apt-get install -y -qq \
-  build-essential \
-  libpq-dev \
-  libsqlite3-dev \
-  libvips-dev \
-  libffi-dev \
-  libssl-dev \
-  libyaml-dev \
-  git \
-  curl \
-  unzip \
-  postgresql-client \
-  > /dev/null 2>&1
+for pkg in "${PACKAGES[@]}"; do
+  printf "  installing %-25s" "$pkg..."
+  apt-get install -y -qq "$pkg" > /dev/null 2>&1 && echo " done" || echo " failed"
+done
 ok "System dependencies installed"
 
 # 2. Create directory structure
