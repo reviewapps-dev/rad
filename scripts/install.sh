@@ -237,12 +237,13 @@ if [ ! -f /etc/profile.d/reviewapps.sh ]; then
   cat > /etc/profile.d/reviewapps.sh <<'PROFILE'
 export PATH="/opt/reviewapps/bin:$PATH"
 PROFILE
-  ok "/etc/profile.d/reviewapps.sh created (takes effect on next login)"
+  ok "/etc/profile.d/reviewapps.sh created"
 else
   ok "Already in PATH"
 fi
-# Also add to current session
-export PATH="$INSTALL_DIR/bin:$PATH"
+# Symlink rad into /usr/local/bin so it works immediately
+ln -sf "$INSTALL_DIR/bin/rad" /usr/local/bin/rad
+ok "rad available at /usr/local/bin/rad"
 
 # 11. Start
 info "Starting services..."
