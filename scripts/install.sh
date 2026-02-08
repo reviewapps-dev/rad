@@ -77,6 +77,12 @@ echo ""
 info "Installing system dependencies..."
 export DEBIAN_FRONTEND=noninteractive
 
+# Wait for any existing apt locks (e.g. unattended-upgrades on fresh boxes)
+while fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+  warn "Waiting for apt lock to release..."
+  sleep 5
+done
+
 PACKAGES=(
   build-essential
   libpq-dev
