@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -210,7 +211,13 @@ func runUpdate(args []string) {
 	}
 
 	if updater.IsSystemd() {
-		fmt.Println("Restart the service to use the new version:")
-		fmt.Println("  sudo systemctl restart rad")
+		fmt.Println("Restarting rad service...")
+		restart := exec.Command("systemctl", "restart", "rad")
+		restart.Stdout = os.Stdout
+		restart.Stderr = os.Stderr
+		if err := restart.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to restart: %v\n", err)
+			fmt.Println("Restart manually with: sudo systemctl restart rad")
+		}
 	}
 }

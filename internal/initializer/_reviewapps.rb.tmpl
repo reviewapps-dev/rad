@@ -1,10 +1,8 @@
 # Auto-injected by ReviewApps daemon — do not edit
 if ENV["REVIEWAPPS"] == "true"
   Rails.application.configure do
-    # Allow review app hostname (prevents 403 Blocked Host)
+    # Allow all hosts (review apps are accessed via subdomain, IP, or localhost)
     config.hosts.clear
-    config.hosts << ENV["REVIEWAPPS_HOST"] if ENV["REVIEWAPPS_HOST"].present?
-    config.hosts << /localhost(:\d+)?/
 
     # SSL / proxy settings — only when behind Caddy (production), not in dev mode
     if ENV["REVIEWAPPS_SSL"] != "false"
