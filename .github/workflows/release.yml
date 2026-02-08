@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Update version in source
+        run: |
+          sed -i 's/Version   = ".*"/Version   = "${{ inputs.version }}"/' internal/version/version.go
+
+      - name: Commit version bump and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add internal/version/version.go
+          git commit -m "Release v${{ inputs.version }}"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin main --follow-tags
+
+      - name: Build release binaries
+        run: make release VERSION=${{ inputs.version }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --generate-notes \
+            dist/rad_linux_amd64.tar.gz \
+            dist/rad_linux_arm64.tar.gz \
+            dist/checksums.txt
+
+      - name: Summary
+        run: |
+          echo "## Release v${{ inputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- \`rad_linux_amd64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`rad_linux_arm64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`checksums.txt\`" >> $GITHUB_STEP_SUMMARY

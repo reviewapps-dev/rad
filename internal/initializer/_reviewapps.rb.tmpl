@@ -1,0 +1,36 @@
+# Auto-injected by ReviewApps daemon — do not edit
+if ENV["REVIEWAPPS"] == "true"
+  Rails.application.configure do
+    # Allow review app hostname (prevents 403 Blocked Host)
+    config.hosts.clear
+    config.hosts << ENV["REVIEWAPPS_HOST"] if ENV["REVIEWAPPS_HOST"].present?
+    config.hosts << /localhost(:\d+)?/
+
+    # SSL / proxy settings — only when behind Caddy (production), not in dev mode
+    if ENV["REVIEWAPPS_SSL"] != "false"
+      config.assume_ssl = true if config.respond_to?(:assume_ssl=)
+      config.ssl_options = { hsts: { expires: 0 } } if config.respond_to?(:ssl_options=)
+    else
+      # Dev mode: no TLS — override Rails 8 production defaults
+      config.assume_ssl = false if config.respond_to?(:assume_ssl=)
+      config.force_ssl = false if config.respond_to?(:force_ssl=)
+    end
+
+    # Serve static files
+    config.public_file_server.enabled = true
+
+    # Prevent sending real emails
+    config.action_mailer.delivery_method = :test
+    config.action_mailer.perform_deliveries = false
+    if ENV["REVIEWAPPS_HOST"].present?
+      protocol = ENV["REVIEWAPPS_SSL"] != "false" ? "https" : "http"
+      config.action_mailer.default_url_options = { host: ENV["REVIEWAPPS_HOST"], protocol: protocol }
+    end
+
+    # Allow WebSocket connections
+    config.action_cable.allowed_request_origins = [/.*/] if defined?(ActionCable)
+
+    # CSP in report-only mode
+    config.content_security_policy_report_only = true if config.respond_to?(:content_security_policy_report_only=)
+  end
+end
