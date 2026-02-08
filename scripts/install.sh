@@ -107,6 +107,9 @@ ok "System dependencies installed"
 # 2. Create directory structure
 info "Creating directory structure..."
 mkdir -p "$INSTALL_DIR"/{bin,etc/caddy/sites,apps,log,tmp}
+# Caddy runs as 'caddy' user and needs to write access logs
+chown caddy:caddy "$INSTALL_DIR/log" 2>/dev/null || true
+chmod 775 "$INSTALL_DIR/log"
 ok "$INSTALL_DIR/{bin,etc,apps,log,tmp}"
 
 # 3. Stop rad if running (binary can't be overwritten while in use)

@@ -66,11 +66,7 @@ func (m *Manager) WriteSiteConfig(cfg SiteConfig) error {
 	hostname := cfg.Subdomain + ".srv.reviewapps.dev"
 
 	content := fmt.Sprintf(`%s {
-	reverse_proxy localhost:%d {
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Host {host}
-	}
+	reverse_proxy localhost:%d
 	log {
 		output file %s
 	}
