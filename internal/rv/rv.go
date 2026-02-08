@@ -7,10 +7,16 @@ import (
 	"strings"
 )
 
-const DefaultBin = "/opt/homebrew/bin/rv"
+// findBin locates the rv binary on PATH, falling back to known locations.
+func findBin() string {
+	if p, err := exec.LookPath("rv"); err == nil {
+		return p
+	}
+	return "rv"
+}
 
 func Install(rubyVersion string) error {
-	cmd := exec.Command(DefaultBin, "ruby", "install", rubyVersion)
+	cmd := exec.Command(findBin(), "ruby", "install", rubyVersion)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -20,7 +26,7 @@ func Install(rubyVersion string) error {
 }
 
 func FindRuby(rubyVersion string) (string, error) {
-	cmd := exec.Command(DefaultBin, "ruby", "find", rubyVersion)
+	cmd := exec.Command(findBin(), "ruby", "find", rubyVersion)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("rv ruby find %s: %w", rubyVersion, err)
@@ -34,7 +40,7 @@ func FindRuby(rubyVersion string) (string, error) {
 func RunInDir(dir string, rubyVersion string, env []string, args ...string) *exec.Cmd {
 	cmdArgs := []string{"ruby", "run", rubyVersion, "--"}
 	cmdArgs = append(cmdArgs, args...)
-	cmd := exec.Command(DefaultBin, cmdArgs...)
+	cmd := exec.Command(findBin(), cmdArgs...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
 	return cmd
@@ -50,7 +56,7 @@ func ExecInDir(dir string, rubyVersion string, env []string, shellCmd string) *e
 
 // ListInstalled returns the installed Ruby versions.
 func ListInstalled() []string {
-	out, err := exec.Command(DefaultBin, "ruby", "list").Output()
+	out, err := exec.Command(findBin(), "ruby", "list").Output()
 	if err != nil {
 		return nil
 	}
@@ -82,7 +88,7 @@ func ListInstalled() []string {
 
 // CleanInstall runs `rv clean-install` in the given directory.
 func CleanInstall(dir string, env []string) error {
-	cmd := exec.Command(DefaultBin, "clean-install")
+	cmd := exec.Command(findBin(), "clean-install")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdout = os.Stdout
