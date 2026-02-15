@@ -11,11 +11,13 @@ import (
 
 type Client struct {
 	httpClient *http.Client
+	token      string
 }
 
-func NewClient() *Client {
+func NewClient(token string) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 10 * time.Second},
+		token:      token,
 	}
 }
 
@@ -58,7 +60,15 @@ func (c *Client) SendLogs(logsURL string, payload LogPayload) error {
 	}
 
 	// Logs are best-effort, single attempt (they batch every 5s so missing one is fine)
-	resp, err := c.httpClient.Post(logsURL, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", logsURL, bytes.NewReader(body))
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil
 	}
@@ -77,7 +87,16 @@ func (c *Client) postWithRetry(url string, body []byte) {
 			time.Sleep(delay)
 		}
 
-		resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+		if err != nil {
+			log.Printf("callback: POST %s attempt %d failed to build request: %v", url, attempt+1, err)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if c.token != "" {
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		}
+		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			log.Printf("callback: POST %s attempt %d failed: %v", url, attempt+1, err)
 			continue

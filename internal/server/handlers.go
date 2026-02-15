@@ -325,7 +325,7 @@ func (s *Server) handleTeardown(w http.ResponseWriter, r *http.Request) {
 
 	// Send teardown callback to web app
 	if state.CallbackURL != "" {
-		client := callback.NewClient()
+		client := callback.NewClient(s.cfg.API.APIKey)
 		client.SendStatus(state.CallbackURL, callback.StatusPayload{
 			AppID:  appID,
 			Status: "removed",

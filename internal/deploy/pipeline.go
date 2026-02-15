@@ -44,7 +44,7 @@ func (p *Pipeline) Run(ctx context.Context, state *app.AppState, redeploy ...boo
 	var logStreamer *logBatcher
 	if state.CallbackURL != "" {
 		logsURL := strings.TrimSuffix(state.CallbackURL, "/status") + "/logs"
-		logStreamer = newLogBatcher(state.AppID, logsURL, 5*time.Second)
+		logStreamer = newLogBatcher(state.AppID, logsURL, p.cfg.API.APIKey, 5*time.Second)
 		logStreamer.start()
 	}
 
@@ -99,7 +99,7 @@ func (p *Pipeline) Run(ctx context.Context, state *app.AppState, redeploy ...boo
 			// Send failure callback to web app
 			if state.CallbackURL != "" {
 				logger.Log("sending failure callback to %s", state.CallbackURL)
-				cb := callback.NewClient()
+				cb := callback.NewClient(p.cfg.API.APIKey)
 				cb.SendStatus(state.CallbackURL, callback.StatusPayload{
 					AppID:  state.AppID,
 					Status: string(app.StatusFailed),
@@ -137,11 +137,11 @@ type logBatcher struct {
 	ticker  *time.Ticker
 }
 
-func newLogBatcher(appID, logsURL string, interval time.Duration) *logBatcher {
+func newLogBatcher(appID, logsURL, apiKey string, interval time.Duration) *logBatcher {
 	return &logBatcher{
 		appID:   appID,
 		logsURL: logsURL,
-		client:  callback.NewClient(),
+		client:  callback.NewClient(apiKey),
 		done:    make(chan struct{}),
 		ticker:  time.NewTicker(interval),
 	}

@@ -16,7 +16,7 @@ func (s *CallbackStep) Run(ctx *StepContext) error {
 		return nil
 	}
 
-	client := callback.NewClient()
+	client := callback.NewClient(ctx.Config.API.APIKey)
 
 	url := fmt.Sprintf("http://localhost:%d", ctx.Port)
 	if ctx.AppState.Subdomain != "" {
